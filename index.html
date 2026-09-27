@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Военный справочник</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3fb950;
+      --accent2: #58a6ff;
+      --danger: #f85149;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      background: #010409;
+      border-bottom: 1px solid var(--border);
+      padding: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    .logo {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    nav button {
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    nav button.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px 12px 80px;
+    }
+    section { display: none; }
+    section.active { display: block; }
+    h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 12px; }
+    h2 { font-size: 1.25rem; color: var(--accent2); margin: 24px 0 12px; }
+    p, li { color: var(--muted); margin-bottom: 8px; font-size: 0.95rem; }
+    ul { padding-left: 20px; margin-bottom: 16px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .card:active {
+      border-color: var(--accent);
+    }
+    .card-img {
+      height: 110px;
+      background: #21262d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .card-body { padding: 14px; }
+    .card h3 { font-size: 1.05rem; margin-bottom: 4px; color: var(--text); }
+    .card p { font-size: 0.85rem; margin: 0; }
+
+    #map {
+      width: 100%;
+      height: 380px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin: 14px 0;
+      background: #21262d;
+    }
+    .map-note {
+      background: #21262d;
+      border-left: 4px solid #d29922;
+      padding: 14px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 16px;
+      font-size: 0.92rem;
+    }
+    .map-note a {
+      color: var(--accent2);
+      font-weight: 600;
+      display: inline-block;
+      margin: 4px 0;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 2000;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .modal.active { display: block; }
+    .modal-content {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-width: 700px;
+      margin: 20px auto;
+      padding: 20px 16px;
+      position: relative;
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.8rem;
+      cursor: pointer;
+    }
+    .ttx-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 0.92rem;
+    }
+    .ttx-table td {
+      padding: 9px 6px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .ttx-table td:first-child {
+      color: var(--muted);
+      width: 42%;
+    }
+
+    .med-block {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .med-block h3 {
+      color: var(--danger);
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #000;
+      font-size: 0.78rem;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    footer {
+      text-align: center;
+      padding: 30px 12px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚔ ВОЕННЫЙ СПРАВОЧНИК</div>
+  <nav id="nav">
+    <button data-sec="home" class="active">Главная</button>
+    <button data-sec="map">Карта</button>
+    <button data-sec="vehicles">Техника</button>
+    <button data-sec="smallarms">Оружие</button>
+    <button data-sec="mines">Мины</button>
+    <button data-sec="medicine">Медицина</button>
+    <button data-sec="about">О сайте</button>
+  </nav>
+</header>
+
+<main>
+
+  <section id="home" class="active">
+    <h1>Военный справочник</h1>
+    <p>Практическая информация по технике, оружию, минам и тактической медицине.</p>
+    <div class="grid">
+      <div class="card" data-open="vehicles">
+        <div class="card-body">
+          <h3>Сухопутная техника</h3>
+          <p>Танки, БМП, БТР — основные ТТХ</p>
+        </div>
+      </div>
+      <div class="card" data-open="smallarms">
+        <div class="card-body">
+          <h3>Стрелковое оружие</h3>
+          <p>Автоматы и пулемёты</p>
+        </div>
+      </div>
+      <div class="card" data-open="mines">
+        <div class="card-body">
+          <h3>Мины</h3>
+          <p>Основные типы и опасность</p>
+        </div>
+      </div>
+      <div class="card" data-open="medicine">
+        <div class="card-body">
+          <h3>Тактическая медицина</h3>
+          <p>MARCH, зоны, аптечка</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="map">
+    <h1>Карта</h1>
+    <div class="map-note">
+      <b>Актуальная обстановка:</b><br><br>
+      <a href="https://deepstatemap.live/en" target="_blank">DeepStateMap</a> — самая подробная карта<br>
+      <a href="https://liveuamap.com" target="_blank">LiveUAMap</a><br>
+      <a href="https://understandingwar.org/map-room/" target="_blank">ISW Map Room</a><br><br>
+      Ниже — обычная карта. Можно ставить метки для себя.
+    </div>
+    <div id="map"></div>
+  </section>
+
+  <section id="vehicles">
+    <h1>Сухопутная техника</h1>
+    <div class="grid">
+      <div class="card" data-modal="t90m">
+        <div class="card-img">Т-90М</div>
+        <div class="card-body"><h3>Т-90М «Прорыв»</h3><p>Основной боевой танк</p></div>
+      </div>
+      <div class="card" data-modal="t72b3">
+        <div class="card-img">Т-72Б3</div>
+        <div class="card-body"><h3>Т-72Б3</h3><p>Модернизированный танк</p></div>
+      </div>
+      <div class="card" data-modal="bmp3">
+        <div class="card-img">БМП-3</div>
+        <div class="card-body"><h3>БМП-3</h3><p>Боевая машина пехоты</p></div>
+      </div>
+      <div class="card" data-modal="btr82a">
+        <div class="card-img">БТР-82А</div>
+        <div class="card-body"><h3>БТР-82А</h3><p>Бронетранспортёр</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="smallarms">
+    <h1>Стрелковое оружие</h1>
+    <div class="grid">
+      <div class="card" data-modal="ak12">
+        <div class="card-img">АК-12</div>
+        <div class="card-body"><h3>АК-12</h3><p>5,45×39 мм</p></div>
+      </div>
+      <div class="card" data-modal="pkm">
+        <div class="card-img">ПКМ</div>
+        <div class="card-body"><h3>ПКМ</h3><p>7,62×54R</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="mines">
+    <h1>Мины и взрывные устройства</h1>
+    <p>Мины — одна из главных причин потерь. Знание базовых типов может спасти жизнь.</p>
+    <div class="grid">
+      <div class="card" data-modal="tm62">
+        <div class="card-img">ТМ-62</div>
+        <div class="card-body"><h3>ТМ-62</h3><p>Противотанковая</p></div>
+      </div>
+      <div class="card" data-modal="mon50">
+        <div class="card-img">МОН-50</div>
+        <div class="card-body"><h3>МОН-50</h3><p>Направленного действия</p></div>
+      </div>
+      <div class="card" data-modal="pom2">
+        <div class="card-img">ПОМ-2</div>
+        <div class="card-body"><h3>ПОМ-2</h3><p>Противопехотная</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="medicine">
+    <h1>Тактическая медицина</h1>
+    <p>Алгоритм <b>MARCH</b> — порядок действий по важности. Сначала то, что убивает быстрее всего.</p>
+
+    <div class="med-block">
+      <h3><span class="badge">M</span> Massive Hemorrhage — Кровотечение</h3>
+      <ul>
+        <li>Жгут накладывается <b>максимально высоко</b> на конечность (бедро или плечо).</li>
+        <li>Затягивать до полной остановки крови и исчезновения пульса ниже жгута.</li>
+        <li>Обязательно записать время наложения.</li>
+        <li>При ранениях туловища, шеи, паха — тампонада + сильное давление.</li>
+        <li>Жгут в полевых условиях самостоятельно не снимать.</li>
+      </ul>
+    </div>
+
+    <div class="med-block">
+      <h3><span class="badge">A</span> Airway — Дыхательные пути</h3>
+      <ul>
+        <li>Проверить рот, убрать всё лишнее.</li>
+        <li>При западении языка — выдвинуть нижнюю челюсть или использовать воздуховод.</li>
+        <li>Без сознания (если нет травмы шеи) — стабильное боковое положение.</li>
+      </ul>
+    </div>
+
+    <div class="med-block">
+      <h3><span class="badge">R</span> Respiration — Дыхание</h3>
+      <ul>
+        <li>Осмотреть грудь на раны и асимметрию.</li>
+        <li>Открытый пневмоторакс — окклюзионная повязка.</li>
+        <li>Напряжённый пневмоторакс — декомпрессия иглой (только обученным).</li>
+      </ul>
+    </div>
+
+    <div class="med-block">
+      <h3><span class="badge">C</span> Circulation — Кровообращение</h3>
+      <ul>
+        <li>Повторно проверить все жгуты и повязки.</li>
+        <li>Оценить признаки шока (бледность, холодный пот, слабый пульс, нарушение сознания).</li>
+      </ul>
+    </div>
+
+    <div class="med-block">
+      <h3><span class="badge">H</span> Hypothermia / Head</h3>
+      <ul>
+        <li>Сохранить тепло — укрыть пострадавшего.</li>
+        <li>Оценить сознание.</li>
+        <li>При травме головы — особенно важно не допускать гипоксии.</li>
+      </ul>
+    </div>
+
+    <h2>Зоны помощи</h2>
+    <ul>
+      <li><b>Красная</b> — под огнём. Только жгут + быстрый вынос.</li>
+      <li><b>Жёлтая</b> — относительное укрытие. Можно делать тампонаду и повязки.</li>
+      <li><b>Зелёная</b> — относительно безопасно. Полноценная помощь.</li>
+    </ul>
+
+    <h2>Минимальная аптечка</h2>
+    <ul>
+      <li>Жгут — лучше 2 шт.</li>
+      <li>Гемостатический бинт</li>
+      <li>Окклюзионная наклейка</li>
+      <li>Широкий бинт / израильский бандаж</li>
+      <li>Тактические ножницы</li>
+      <li>Перчатки</li>
+      <li>Маркер</li>
+    </ul>
+  </section>
+
+  <section id="about">
+    <h1>О сайте</h1>
+    <p>Справочник создан для того, чтобы дать базовую практическую информацию. Данные собраны из открытых источников.</p>
+    <p>Информация не заменяет полноценную подготовку и официальные наставления.</p>
+  </section>
+
+</main>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <button class="close-btn" id="closeModal">×</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<footer>Военный справочник</footer>
+
+<script>
+  var data = {
+    t90m: {
+      title: "Т-90М «Прорыв»",
+      html: "<table class='ttx-table'><tr><td>Масса</td><td>48–51 т</td></tr><tr><td>Экипаж</td><td>3</td></tr><tr><td>Двигатель</td><td>В-92С2Ф, 1130 л.с.</td></tr><tr><td>Скорость</td><td>до 70 км/ч</td></tr><tr><td>Запас хода</td><td>\~550 км</td></tr><tr><td>Орудие</td><td>125-мм 2А46М-5</td></tr><tr><td>Боекомплект</td><td>40 выстрелов</td></tr><tr><td>Защита</td><td>«Реликт» + решётки</td></tr><tr><td>СУО</td><td>«Калина»</td></tr></table>"
+    },
+    t72b3: {
+      title: "Т-72Б3",
+      html: "<table class='ttx-table'><tr><td>Масса</td><td>\~46–47 т</td></tr><tr><td>Экипаж</td><td>3</td></tr><tr><td>Орудие</td><td>125-мм 2А46М-5</td></tr><tr><td>Защита</td><td>«Контакт-5» / «Реликт»</td></tr></table>"
+    },
+    bmp3: {
+      title: "БМП-3",
+      html: "<table class='ttx-table'><tr><td>Масса</td><td>\~18,7 т</td></tr><tr><td>Экипаж + десант</td><td>3 + 7</td></tr><tr><td>Вооружение</td><td>100-мм + 30-мм</td></tr></table>"
+    },
+    btr82a: {
+      title: "БТР-82А",
+      html: "<table class='ttx-table'><tr><td>Масса</td><td>\~15,4 т</td></tr><tr><td>Вооружение</td><td>30-мм 2А72</td></tr></table>"
+    },
+    ak12: {
+      title: "АК-12",
+      html: "<table class='ttx-table'><tr><td>Калибр</td><td>5,45×39</td></tr><tr><td>Масса</td><td>3,7 кг</td></tr><tr><td>Темп стрельбы</td><td>\~700 выстр/мин</td></tr><tr><td>Магазин</td><td>30 патронов</td></tr></table>"
+    },
+    pkm: {
+      title: "ПКМ",
+      html: "<table class='ttx-table'><tr><td>Калибр</td><td>7,62×54R</td></tr><tr><td>Масса</td><td>7,5 кг</td></tr><tr><td>Темп стрельбы</td><td>650–720 выстр/мин</td></tr></table>"
+    },
+    tm62: {
+      title: "ТМ-62",
+      html: "<p>Основная противотанковая мина. Нажимного действия. Может устанавливаться вручную и машинами.</p>"
+    },
+    mon50: {
+      title: "МОН-50",
+      html: "<p>Осколочная мина направленного действия. Поражение в секторе до 50 метров. Очень опасна.</p>"
+    },
+    pom2: {
+      title: "ПОМ-2",
+      html: "<p>Противопехотная выпрыгивающая мина. Круговое поражение. Часто ставится средствами дистанционного минирования.</p>"
+    }
+  };
+
+  var navBtns = document.querySelectorAll("nav button");
+  var sections = document.querySelectorAll("main section");
+  var map = null;
+  var mapReady = false;
+
+  function showSection(id) {
+    for (var i = 0; i < sections.length; i++) {
+      sections[i].classList.remove("active");
+    }
+    for (var i = 0; i < navBtns.length; i++) {
+      navBtns[i].classList.remove("active");
+    }
+    var sec = document.getElementById(id);
+    if (sec) sec.classList.add("active");
+    var btn = document.querySelector('nav button[data-sec="' + id + '"]');
+    if (btn) btn.classList.add("active");
+    if (id === "map") {
+      setTimeout(function() {
+        initMap();
+        if (map) map.invalidateSize();
+      }, 120);
+    }
+  }
+
+  for (var i = 0; i < navBtns.length; i++) {
+    navBtns[i].addEventListener("click", function() {
+      showSection(this.getAttribute("data-sec"));
+    });
+  }
+
+  var openCards = document.querySelectorAll("[data-open]");
+  for (var i = 0; i < openCards.length; i++) {
+    openCards[i].addEventListener("click", function() {
+      showSection(this.getAttribute("data-open"));
+    });
+  }
+
+  var modal = document.getElementById("modal");
+  var modalBody = document.getElementById("modal-body");
+  var modalCards = document.querySelectorAll("[data-modal]");
+  for (var i = 0; i < modalCards.length; i++) {
+    modalCards[i].addEventListener("click", function() {
+      var key = this.getAttribute("data-modal");
+      var item = data[key];
+      if (!item) return;
+      modalBody.innerHTML = "<h2 style='margin-bottom:12px'>" + item.title + "</h2>" + item.html;
+      modal.classList.add("active");
+    });
+  }
+
+  document.getElementById("closeModal").addEventListener("click", function() {
+    modal.classList.remove("active");
+  });
+  modal.addEventListener("click", function(e) {
+    if (e.target === modal) modal.classList.remove("active");
+  });
+
+  function initMap() {
+    if (mapReady) {
+      map.invalidateSize();
+      return;
+    }
+    map = L.map("map").setView([48.5, 37.8], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: "© OpenStreetMap"
+    }).addTo(map);
+    map.on("click", function(e) {
+      L.marker(e.latlng).addTo(map)
+        .bindPopup(e.latlng.lat.toFixed(4) + ", " + e.latlng.lng.toFixed(4))
+        .openPopup();
+    });
+    mapReady = true;
+    setTimeout(function() { map.invalidateSize(); }, 250);
+  }
+</script>
+</body>
+  </html>
